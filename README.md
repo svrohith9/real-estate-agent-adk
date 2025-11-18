@@ -1,5 +1,7 @@
 # Real Estate Deal Analyst (ADK)
 
+[![CI](https://github.com/svrohith9/real-estate-agent-adk/actions/workflows/ci.yml/badge.svg)](https://github.com/svrohith9/real-estate-agent-adk/actions)
+
 Monetization-ready ADK agent that analyzes residential deals (comps, mortgage math, rent-based valuation). Swap the demo data/tools for paid data feeds (MLS/comps APIs, rate sheets, tax/insurance APIs) and add auth/logging for billed tiers.
 
 ## Features
