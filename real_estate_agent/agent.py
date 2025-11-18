@@ -249,17 +249,32 @@ def _format_address(data: Dict[str, object]) -> str:
 
 # --- External API helper (ATTOM) ---
 def _fetch_attom(keyword: str, max_results: int) -> Optional[Dict[str, object]]:
-    """Query ATTOM property API; return None on failure so we can fall back."""
+    """Query ATTOM property API; return None on failure so we can fall back.
+
+    NOTE: ATTOM's address match is strict; include street, city, state, and ZIP when possible.
+    """
     import requests  # local import to avoid dependency if not used
 
     api_key = ATTOM_API_KEY
     if not api_key:
         return None
 
-    # ATTOM address endpoint expects free-form address; adjust endpoint as needed.
     url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/address"
     headers = {"apikey": api_key}
-    params = {"address": keyword}
+
+    # Try to pull a ZIP if present; ATTOM matches better with ZIP.
+    zip_code = None
+    parts = keyword.split()
+    if parts and parts[-1].isdigit() and len(parts[-1]) in (5, 9):
+        zip_code = parts[-1]
+        keyword_wo_zip = " ".join(parts[:-1])
+    else:
+        keyword_wo_zip = keyword
+
+    params = {"address": keyword_wo_zip}
+    if zip_code:
+        params["postalcode"] = zip_code
+
     try:
         resp = requests.get(url, headers=headers, params=params, timeout=8)
         resp.raise_for_status()
