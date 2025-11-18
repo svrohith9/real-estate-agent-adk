@@ -96,8 +96,8 @@ def main():
         except Exception as e:
             st.error(f"Rent valuation error: {e}")
 
-        # Highlights
-        st.markdown("### Highlights")
+        # Ordered output
+        st.markdown("### Summary")
         mcols = st.columns(3)
         if mort_result:
             mcols[0].metric("P&I", f"${mort_result['principal_interest']:,.0f}")
@@ -106,47 +106,42 @@ def main():
         if rent_result:
             st.metric("Implied value (rent-based)", f"${rent_result['implied_value']:,.0f}")
 
-        # Details columns
-        st.markdown("### Details")
-        col_fin, col_comps = st.columns(2)
-        with col_fin:
-            st.markdown("**Mortgage & Cashflow**")
-            if mort_result:
-                st.write(
-                    f"LTV {mort_result['ltv_percent']}% · Loan ${mort_result['loan_amount']:,.0f} · "
-                    f"Down ${mort_result['down_payment']:,.0f} · Rate {mort_result['inputs']['rate_percent']}% · "
-                    f"Term {mort_result['inputs']['years']} years"
-                )
-                st.write(
-                    f"Taxes ${mort_result['inputs']['taxes_month']:,.0f} · "
-                    f"Insurance ${mort_result['inputs']['insurance_month']:,.0f} · "
-                    f"HOA ${mort_result['inputs']['hoa_month']:,.0f}"
-                )
-            else:
-                st.info("No mortgage result (check inputs).")
+        st.markdown("### Financials")
+        if mort_result:
+            st.write(
+                f"LTV {mort_result['ltv_percent']}% · Loan ${mort_result['loan_amount']:,.0f} · "
+                f"Down ${mort_result['down_payment']:,.0f} · Rate {mort_result['inputs']['rate_percent']}% · "
+                f"Term {mort_result['inputs']['years']} years"
+            )
+            st.write(
+                f"Taxes ${mort_result['inputs']['taxes_month']:,.0f} · "
+                f"Insurance ${mort_result['inputs']['insurance_month']:,.0f} · "
+                f"HOA ${mort_result['inputs']['hoa_month']:,.0f}"
+            )
+        else:
+            st.info("No mortgage result (check inputs).")
 
-            st.markdown("**Rent-based valuation**")
-            if rent_result:
-                st.write(
-                    f"NOI ${rent_result['noi']:,.0f} @ {rent_result['target_cap_rate']}% cap → "
-                    f"Value ${rent_result['implied_value']:,.0f}"
-                )
-            else:
-                st.info("No rent-based valuation (check inputs).")
+        st.markdown("### Rent-based valuation")
+        if rent_result:
+            st.write(
+                f"NOI ${rent_result['noi']:,.0f} @ {rent_result['target_cap_rate']}% cap → "
+                f"Value ${rent_result['implied_value']:,.0f}"
+            )
+        else:
+            st.info("No rent-based valuation (check inputs).")
 
-        with col_comps:
-            st.markdown("**Comparable properties**")
-            if comps_result:
-                source = comps_result.get("source", "unknown")
-                st.write(f"Source: {source} — Found {comps_result['count']} (max {max_comps} shown)")
-                if comps:
-                    st.dataframe(comps, use_container_width=True)
-                else:
-                    st.info("No comps found for this keyword in current source.")
-                if comps and all(not c.get("price") for c in comps) and fallback_price:
-                    st.caption(f"Comps missing price; using fallback price ${fallback_price:,.0f} for analysis.")
+        st.markdown("### Comps")
+        if comps_result:
+            source = comps_result.get("source", "unknown")
+            st.write(f"Source: {source} — Found {comps_result['count']} (max {max_comps} shown)")
+            if comps:
+                st.dataframe(comps, use_container_width=True)
             else:
-                st.info("No comps yet. Enter an address and click Analyze.")
+                st.info("No comps found for this keyword in current source.")
+            if comps and all(not c.get("price") for c in comps) and fallback_price:
+                st.caption(f"Comps missing price; using fallback price ${fallback_price:,.0f} for analysis.")
+        else:
+            st.info("No comps yet. Enter an address and click Analyze.")
 
 if __name__ == "__main__":
     main()
