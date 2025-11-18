@@ -262,23 +262,21 @@ def _fetch_attom(keyword: str, max_results: int) -> Optional[Dict[str, object]]:
     url = "https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/address"
     headers = {"apikey": api_key}
 
-    # Try to pull a ZIP if present; ATTOM matches better with ZIP.
-    zip_code = None
-    parts = keyword.split()
-    if parts and parts[-1].isdigit() and len(parts[-1]) in (5, 9):
-        zip_code = parts[-1]
-        keyword_wo_zip = " ".join(parts[:-1])
-    else:
-        keyword_wo_zip = keyword
+    params = {"address": keyword}
 
-    params = {"address": keyword_wo_zip}
-    if zip_code:
-        params["postalcode"] = zip_code
+    def _request(p):
+        r = requests.get(url, headers=headers, params=p, timeout=8)
+        r.raise_for_status()
+        return r.json()
 
     try:
-        resp = requests.get(url, headers=headers, params=params, timeout=8)
-        resp.raise_for_status()
-        payload = resp.json()
+        payload = _request(params)
+    except requests.HTTPError as e:
+        # If ATTOM complains about parameter combo, retry without postal code or extras.
+        try:
+            payload = _request({"address": keyword})
+        except Exception:
+            return None
     except Exception:
         return None
 
