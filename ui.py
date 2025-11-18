@@ -76,11 +76,18 @@ def main():
         except Exception as e:
             st.error(f"Comps lookup error: {e}")
 
+        price_for_calc = price
+        comps = []
+        if comps_result:
+            comps = comps_result.get("results") or []
+            if comps and all(not c.get("price") for c in comps) and fallback_price:
+                price_for_calc = fallback_price
+
         # Mortgage
         mort_result = None
         try:
             mort_result = mortgage_summary(
-                price=price,
+                price=price_for_calc,
                 down_payment=down,
                 rate_percent=rate,
                 years=int(years),

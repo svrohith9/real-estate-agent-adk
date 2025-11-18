@@ -7,6 +7,7 @@ credit pulls, or financial calculators; add auth and logging around these tools.
 from __future__ import annotations
 
 import csv
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -18,6 +19,13 @@ COMPS_FILE = DATA_DIR / "comps.csv"
 MAX_RESULTS_HARD_LIMIT = 10
 ESTATED_API_KEY = os.getenv("ESTATED_API_KEY")
 ATTOM_API_KEY = os.getenv("ATTOM_API_KEY")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logging.basicConfig(level=LOG_LEVEL)
+else:
+    logger.setLevel(LOG_LEVEL)
 
 
 def _load_comps() -> List[Dict[str, str]]:
@@ -70,15 +78,18 @@ def find_comps(
 
     limited = _clamp_max_results(max_results)
     provider_order = _provider_priority(preferred_source)
+    logger.info("find_comps keyword=%r providers=%s limit=%d", keyword, provider_order, limited)
 
     for provider in provider_order:
         if provider == "attom" and ATTOM_API_KEY:
             api_results = _fetch_attom(keyword, limited)
             if api_results is not None:
+                logger.info("find_comps provider=attom count=%d", api_results.get("count", 0))
                 return api_results
         if provider == "estated" and ESTATED_API_KEY:
             api_results = _fetch_estated(keyword, limited)
             if api_results is not None:
+                logger.info("find_comps provider=estated count=%d", api_results.get("count", 0))
                 return api_results
         if provider == "demo":
             break
@@ -87,6 +98,7 @@ def find_comps(
     keyword_lower = keyword.lower()
     matches = [c for c in comps if keyword_lower in c["address"].lower()]
     top = matches[:limited]
+    logger.info("find_comps provider=demo_csv count=%d", len(top))
     return {"count": len(top), "source": "demo_csv", "results": top}
 
 
@@ -213,7 +225,8 @@ def _fetch_estated(keyword: str, max_results: int) -> Optional[Dict[str, object]
         )
         resp.raise_for_status()
         payload = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("estated_request_failure error=%s", e)
         return None
 
     data = payload.get("data")
@@ -234,11 +247,13 @@ def _fetch_estated(keyword: str, max_results: int) -> Optional[Dict[str, object]
         "list_date": sales[0].get("sale_date") if sales else None,
     }
     # Only one record returned per query; wrap as list for consistency.
-    return {
+    result = {
         "count": 1 if price else 0,
         "source": "estated",
         "results": [primary] if price else [],
     }
+    logger.info("estated_success count=%d", result["count"])
+    return result
 
 
 def _format_address(data: Dict[str, object]) -> str:
@@ -272,12 +287,14 @@ def _fetch_attom(keyword: str, max_results: int) -> Optional[Dict[str, object]]:
     try:
         payload = _request(params)
     except requests.HTTPError as e:
-        # If ATTOM complains about parameter combo, retry without postal code or extras.
+        logger.warning("attom_http_error status=%s error=%s params=%s", getattr(e.response, "status_code", None), e, params)
         try:
             payload = _request({"address": keyword})
-        except Exception:
+        except Exception as e2:
+            logger.warning("attom_retry_failed error=%s", e2)
             return None
-    except Exception:
+    except Exception as e:
+        logger.warning("attom_request_failure error=%s", e)
         return None
 
     props = (payload.get("property") or [])[:max_results]

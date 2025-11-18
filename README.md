@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/svrohith9/real-estate-agent-adk/actions/workflows/ci.yml/badge.svg)](https://github.com/svrohith9/real-estate-agent-adk/actions)
 
-Monetization-ready ADK agent that analyzes residential deals (comps, mortgage math, rent-based valuation). Swap the demo data/tools for paid data feeds (MLS/comps APIs, rate sheets, tax/insurance APIs) and add auth/logging for billed tiers.
+Real estate deal analyst built with ADK: comps lookup (ATTOM/Estated or demo CSV), mortgage/PITI + cashflow, rent-based valuation, and a Streamlit UI.
 
 ## Features
-- `find_comps`: returns comparable properties from a sample CSV (replace with your data API).
-- `mortgage_summary`: PITI + LTV + cashflow; plug in live rates/taxes/insurance.
-- `rent_vs_price`: infers value from rent given a target cap and expense ratio.
-- Replayable demo so you can run without typing.
+- Comps: ATTOM or Estated if keys are set; falls back to demo CSV.
+- Mortgage/PITI + LTV + cashflow; rent-based valuation.
+- Streamlit UI with provider selector and fallback price for missing comp prices.
+- Replayable demo for regression/quick tests.
 
 ## Project layout
 ```
@@ -54,13 +54,6 @@ real-estate-agent-adk/
    # open http://localhost:8000
    ```
 
-## Monetization hooks
-- Replace `data/comps.csv` with MLS/comps APIs or your own DB; add auth, logging, and metering.
-- Built-in fallbacks: supports Estated (set `ESTATED_API_KEY`) and ATTOM (set `ATTOM_API_KEY`); otherwise uses demo CSV.
-- Wrap financial tools with premium data (rate sheets, insurance, property tax services).
-- Persist sessions and exports (PDF/CSV) for paid seats; add user roles and audit logs.
-- Use replay files as regression tests for behavior guarantees (enterprise value prop).
-
 ## Tool signatures (keep simple for ADK)
 - `find_comps(keyword: str, max_results: int = 3, preferred_source: str = "auto")`
 - `mortgage_summary(price: float, down_payment: float, rate_percent: float, years: int, taxes_month: float = 0.0, insurance_month: float = 0.0, hoa_month: float = 0.0, rent_month: float = 0.0)`
@@ -69,13 +62,11 @@ real-estate-agent-adk/
 ## Sample data
 `real_estate_agent/data/comps.csv` contains Springfield, IL sample comps. Swap with live feeds.
 
-## Production hardening
-- Keep tool signatures simple (already ADK-friendly). Validate numeric inputs (already in tools) and add region-specific caps/allowlists on live APIs.
-- Centralize secrets (vault/KMS), never commit .env; enable audit logs for tool calls and user prompts.
-- Add structured logging/metrics/tracing; hook replay files into CI for regression checks.
-- Add rate limits and per-tenant auth if exposing as API/SaaS. Persist sessions and exports (PDF/CSV) under RBAC.
-
 ## Streamlit Cloud deploy notes
 - Add secrets in the Streamlit dashboard: `GOOGLE_API_KEY`, `ATTOM_API_KEY`, `ESTATED_API_KEY` (if used).
 - The UI auto-loads secrets into env on startup; providers will warn if a selected key is missing.
 - `requirements.txt` already includes `streamlit` and `requests`; no extra steps needed.
+
+## Logging
+- Set `LOG_LEVEL` (default INFO) to see provider choices and API fallbacks in logs.
+- ADK run logs to `tmp/agents_log/...` locally; Streamlit logs appear in the Cloud console.
