@@ -17,6 +17,17 @@ from real_estate_agent.agent import (
     DATA_DIR,
 )
 
+def _hydrate_env_from_streamlit_secrets() -> None:
+    """If running on Streamlit Cloud, copy secrets into env so tools can read them."""
+    if not hasattr(st, "secrets"):
+        return
+    for key in ("GOOGLE_API_KEY", "ATTOM_API_KEY", "ESTATED_API_KEY"):
+        if key in st.secrets and st.secrets[key]:
+            os.environ[key] = str(st.secrets[key])
+
+
+_hydrate_env_from_streamlit_secrets()
+
 ATTOM_KEY_SET = bool(os.getenv("ATTOM_API_KEY"))
 ESTATED_KEY_SET = bool(os.getenv("ESTATED_API_KEY"))
 

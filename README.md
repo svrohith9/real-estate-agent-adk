@@ -74,3 +74,8 @@ real-estate-agent-adk/
 - Centralize secrets (vault/KMS), never commit .env; enable audit logs for tool calls and user prompts.
 - Add structured logging/metrics/tracing; hook replay files into CI for regression checks.
 - Add rate limits and per-tenant auth if exposing as API/SaaS. Persist sessions and exports (PDF/CSV) under RBAC.
+
+## Streamlit Cloud deploy notes
+- Add secrets in the Streamlit dashboard: `GOOGLE_API_KEY`, `ATTOM_API_KEY`, `ESTATED_API_KEY` (if used).
+- The UI auto-loads secrets into env on startup; providers will warn if a selected key is missing.
+- `requirements.txt` already includes `streamlit` and `requests`; no extra steps needed.
