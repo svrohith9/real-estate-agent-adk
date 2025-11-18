@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-replay:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run ADK replay
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          ATTOM_API_KEY: ${{ secrets.ATTOM_API_KEY }}
+          ESTATED_API_KEY: ${{ secrets.ESTATED_API_KEY }}
+          TMPDIR: ${{ github.workspace }}/tmp
+        run: |
+          mkdir -p "$TMPDIR"
+          source .venv/bin/activate
+          adk run --replay replay.json real_estate_agent || true
