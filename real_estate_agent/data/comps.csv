@@ -1,0 +1,6 @@
+address,city,state,beds,baths,sqft,price,list_date
+123 Maple St,Springfield,IL,3,2,1650,285000,2024-07-12
+125 Maple St,Springfield,IL,3,2,1580,279000,2024-08-01
+10 Oak Ave,Springfield,IL,4,3,2100,345000,2024-06-20
+22 Pine Rd,Springfield,IL,3,2,1725,295000,2024-05-30
+45 Cedar Ln,Springfield,IL,2,1,1200,215000,2024-09-15
