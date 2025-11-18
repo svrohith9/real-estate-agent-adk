@@ -32,17 +32,46 @@ ATTOM_KEY_SET = bool(os.getenv("ATTOM_API_KEY"))
 ESTATED_KEY_SET = bool(os.getenv("ESTATED_API_KEY"))
 
 st.set_page_config(page_title="Real Estate Deal Analyst", layout="wide")
-st.title("Real Estate Deal Analyst")
-st.caption("Demo UI powered by the ADK tools. Swap data/APIs for production.")
+
+# Minimal styling for cards/spacing.
+st.markdown(
+    """
+    <style>
+    .metric-card {padding: 1rem; border-radius: 0.5rem; background: #0f1116;
+                  border: 1px solid rgba(255,255,255,0.08); margin-bottom: 0.75rem;}
+    .muted {color: rgba(255,255,255,0.7);}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 def as_float(label: str, default: float, min_val: float = 0.0, step: float = 0.01):
     return st.number_input(label, value=float(default), min_value=float(min_val), step=float(step))
 
 def main():
+    st.title("Real Estate Deal Analyst")
+    st.caption("Comps + mortgage/PITI + rent-based valuation. Sources: ATTOM, Estated, or demo CSV.")
+
+    # Sidebar controls
+    st.sidebar.header("Data & Providers")
+    provider = st.sidebar.selectbox(
+        "Comps provider",
+        options=["auto", "attom", "estated", "demo"],
+        index=0,
+        help="auto tries ATTOM, then Estated, then demo CSV.",
+    )
+    max_comps = int(st.sidebar.number_input("Max comps", value=3, min_value=1, max_value=10, step=1))
+    fallback_price = as_float("Fallback price if comps have no price ($)", 350000, 0, 1000)
+    if provider == "attom" and not ATTOM_KEY_SET:
+        st.sidebar.warning("ATTOM_API_KEY not set; will fall back.")
+    if provider == "estated" and not ESTATED_KEY_SET:
+        st.sidebar.warning("ESTATED_API_KEY not set; will fall back.")
+
+    # Main inputs
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Property & Pricing")
-        address = st.text_input("Address keyword", "123 Maple St, Springfield")
+        address = st.text_input("Address (include ZIP for best match)", "1184 Lavaca Dr, Forney, TX 75126")
         price = as_float("Price assumption ($)", 350000, 0, 1000)
         down = as_float("Down payment ($)", price * 0.2, 0, 1000)
         rate = as_float("Rate (%)", 6.5, 0, 0.05)
@@ -55,20 +84,8 @@ def main():
         rent = as_float("Rent / mo ($)", 2400, 0, 10)
         cap = as_float("Target cap rate (%)", 5.0, 0.1, 0.1)
         expense_ratio = as_float("Expense ratio (0-1)", 0.35, 0.0, 0.01)
-        max_comps = int(st.number_input("Max comps", value=3, min_value=1, max_value=10, step=1))
-        provider = st.selectbox(
-            "Comps provider",
-            options=["auto", "attom", "estated", "demo"],
-            index=0,
-            help="auto tries ATTOM, then Estated, then demo CSV.",
-        )
-        fallback_price = as_float("Fallback price if comps have no price ($)", price, 0, 1000)
-        if provider == "attom" and not ATTOM_KEY_SET:
-            st.warning("ATTOM provider selected but ATTOM_API_KEY is not set; expect fallback to next available source.")
-        if provider == "estated" and not ESTATED_KEY_SET:
-            st.warning("Estated provider selected but ESTATED_API_KEY is not set; expect fallback to next available source.")
 
-    if st.button("Analyze", type="primary"):
+    if st.button("Analyze", type="primary", use_container_width=True):
         # Comps
         comps_result = None
         try:
@@ -110,40 +127,62 @@ def main():
         except Exception as e:
             st.error(f"Rent valuation error: {e}")
 
-        # Results layout
-        colA, colB = st.columns(2)
-        with colA:
-            st.markdown("### Cashflow & Mortgage")
+        # Summary
+        st.markdown("### Highlights")
+        mcols = st.columns(3)
+        if mort_result:
+            mcols[0].metric("P&I", f"${mort_result['principal_interest']:,.0f}")
+            mcols[1].metric("PITI", f"${mort_result['monthly_payment']:,.0f}")
+            mcols[2].metric("Cashflow", f"${mort_result['cashflow']:,.0f}")
+
+        if rent_result:
+            st.markdown(
+                f"<div class='metric-card'>Implied value from rent: "
+                f"<strong>${rent_result['implied_value']:,.0f}</strong> "
+                f"(@ {rent_result['target_cap_rate']}% cap, exp ratio {rent_result['expense_ratio']:.2f})</div>",
+                unsafe_allow_html=True,
+            )
+
+        # Tabs for details
+        tab_fin, tab_comps = st.tabs(["Financials", "Comps"])
+        with tab_fin:
+            st.markdown("#### Mortgage & Cashflow")
             if mort_result:
-                st.metric("P&I", f"${mort_result['principal_interest']:,.0f}")
-                st.metric("PITI", f"${mort_result['monthly_payment']:,.0f}")
-                st.metric("Cashflow (rent - PITI)", f"${mort_result['cashflow']:,.0f}")
-                st.caption(
-                    f"LTV {mort_result['ltv_percent']}%, Loan ${mort_result['loan_amount']:,.0f}, "
-                    f"Down ${mort_result['down_payment']:,.0f}"
+                st.write(
+                    f"LTV {mort_result['ltv_percent']}% · Loan ${mort_result['loan_amount']:,.0f} · "
+                    f"Down ${mort_result['down_payment']:,.0f} · Rate {mort_result['inputs']['rate_percent']}% · "
+                    f"Term {mort_result['inputs']['years']} years"
                 )
+                st.write(
+                    f"Taxes ${mort_result['inputs']['taxes_month']:,.0f} · "
+                    f"Insurance ${mort_result['inputs']['insurance_month']:,.0f} · "
+                    f"HOA ${mort_result['inputs']['hoa_month']:,.0f}"
+                )
+            else:
+                st.info("No mortgage result (check inputs).")
 
-            st.markdown("### Rent-based valuation")
+            st.markdown("#### Rent-based valuation")
             if rent_result:
-                st.metric("Implied value", f"${rent_result['implied_value']:,.0f}")
-                st.caption(
-                    f"NOI ${rent_result['noi']:,.0f} @ {rent_result['target_cap_rate']}% cap, "
-                    f"expense ratio {rent_result['expense_ratio']:.2f}"
+                st.write(
+                    f"NOI ${rent_result['noi']:,.0f} @ {rent_result['target_cap_rate']}% cap → "
+                    f"Value ${rent_result['implied_value']:,.0f}"
                 )
+            else:
+                st.info("No rent-based valuation (check inputs).")
 
-        with colB:
-            st.markdown("### Comps")
+        with tab_comps:
+            st.markdown("#### Comparable properties")
             if comps_result:
                 source = comps_result.get("source", "unknown")
-                st.write(f"Source: {source} — Found {comps_result['count']} comps (showing up to {max_comps})")
-                comps = comps_result.get("results") or []
+                st.write(f"Source: {source} — Found {comps_result['count']} (max {max_comps} shown)")
                 if comps:
                     st.dataframe(comps, use_container_width=True)
                 else:
                     st.info("No comps found for this keyword in current source.")
-                # If comps lack price and we have a fallback price, remind the user it's being used.
                 if comps and all(not c.get("price") for c in comps) and fallback_price:
                     st.caption(f"Comps missing price; using fallback price ${fallback_price:,.0f} for analysis.")
+            else:
+                st.info("No comps yet. Enter an address and click Analyze.")
 
 if __name__ == "__main__":
     main()
