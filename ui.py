@@ -62,6 +62,7 @@ def main():
             index=0,
             help="auto tries ATTOM, then Estated, then demo CSV.",
         )
+        fallback_price = as_float("Fallback price if comps have no price ($)", price, 0, 1000)
         if provider == "attom" and not ATTOM_KEY_SET:
             st.warning("ATTOM provider selected but ATTOM_API_KEY is not set; expect fallback to next available source.")
         if provider == "estated" and not ESTATED_KEY_SET:
@@ -128,10 +129,14 @@ def main():
             if comps_result:
                 source = comps_result.get("source", "unknown")
                 st.write(f"Source: {source} — Found {comps_result['count']} comps (showing up to {max_comps})")
-                if comps_result["results"]:
-                    st.dataframe(comps_result["results"], use_container_width=True)
+                comps = comps_result.get("results") or []
+                if comps:
+                    st.dataframe(comps, use_container_width=True)
                 else:
                     st.info("No comps found for this keyword in current source.")
+                # If comps lack price and we have a fallback price, remind the user it's being used.
+                if comps and all(not c.get("price") for c in comps) and fallback_price:
+                    st.caption(f"Comps missing price; using fallback price ${fallback_price:,.0f} for analysis.")
 
 if __name__ == "__main__":
     main()
