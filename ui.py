@@ -29,8 +29,11 @@ def main():
     with col1:
         st.subheader("Property & Pricing")
         address = st.text_input("Address (include ZIP)", "1184 Lavaca Dr, Forney, TX 75126")
+        st.caption("Full street + city + state + ZIP improves provider matches.")
         price = as_float("Price assumption ($)", 350000, 0, 1000)
+        st.caption("Use your expected purchase price. If comps lack price, this anchors the analysis.")
         fallback_price = as_float("Fallback price if comps have no price ($)", price, 0, 1000)
+        st.caption("Applied automatically when comps return without price.")
         down = as_float("Down payment ($)", price * 0.2, 0, 1000)
         rate = as_float("Rate (%)", 6.5, 0, 0.05)
         years = st.number_input("Term (years)", value=30, min_value=1, max_value=40, step=1)
@@ -48,6 +51,7 @@ def main():
             index=0,
             help="auto tries ATTOM, then Estated, then demo CSV.",
         )
+        st.caption("Auto will cascade ATTOM → Estated → demo CSV.")
         max_comps = int(st.number_input("Max comps", value=3, min_value=1, max_value=10, step=1))
         if provider == "attom" and not ATTOM_KEY_SET:
             st.info("ATTOM_API_KEY not set; will fall back.")
